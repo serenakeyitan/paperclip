@@ -199,3 +199,26 @@ PR #2218 (`feat/external-adapter-phase1`) adds external adapter support. See roo
 - `createServerAdapter()` must include ALL optional fields (especially `detectModel`)
 - Built-in UI adapters can shadow external plugin parsers — remove built-in when fully externalizing
 - Reference external adapters: Hermes (`@henkey/hermes-paperclip-adapter` or `file:`) and Droid (npm)
+
+<!-- BEGIN FIRST-TREE-SOURCE-INTEGRATION -->
+FIRST-TREE-SOURCE-INTEGRATION: source repo bound to dedicated tree repo `paperclip-tree`
+FIRST-TREE-TREE-REPO: `paperclip-tree`
+FIRST-TREE-TREE-MODE: `dedicated`
+FIRST-TREE-BINDING-MODE: `standalone-source`
+FIRST-TREE-TREE-REPO-URL: `https://github.com/serenakeyitan/paperclip-tree.git`
+FIRST-TREE-ENTRYPOINT: `/`
+FIRST-TREE-LOCAL-TREE-CONFIG: `.first-tree/local-tree.json`
+
+This repo is a source/workspace repo. Keep all Context Tree files only in the dedicated `paperclip-tree` repo.
+
+Before every task:
+- Read `.first-tree/local-tree.json` first. If it exists, resolve its `localPath` value from this repo root and treat that checkout as the canonical local tree repo.
+- If that configured checkout exists locally, update it before you read anything else.
+- If the configured checkout is missing, clone a temporary working copy from `https://github.com/serenakeyitan/paperclip-tree.git` into `.first-tree/tmp/paperclip-tree/`, use it for the current task, and delete it before you finish.
+- Never commit `.first-tree/local-tree.json` or anything under `.first-tree/tmp/` to this repo. They are local-only workspace state.
+
+After every task:
+- Always ask whether the tree needs updating.
+- If the task changed decisions, constraints, rationale, ownership, or shared workspace relationships, open a PR in the tree repo first. Then open the source/workspace code PR.
+- If the task changed only implementation details, skip the tree PR and open only the source/workspace code PR.
+<!-- END FIRST-TREE-SOURCE-INTEGRATION -->
