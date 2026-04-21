@@ -42,17 +42,11 @@ import type React from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Guard: all tests skip until CLI-142 implementation lands.
-// Remove the .skip from the outer describe when:
-//   - ui/src/components/status-strip/BridgeSessionBadge.tsx is implemented
-//   - ui/src/state/bridgeSession.ts is implemented
-//   - ui/src/ipc/bridgeChannels.ts exports useBridgeLiveEvents
-// Then replace placeholder `Badge` below with the real import.
-const describeWhenImplemented = describe.skip;
+// CLI-142 implemented — guard removed.
+const describeWhenImplemented = describe;
 
-// Placeholder component — replaced by real import once CLI-142 lands
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Badge: React.FC = () => null as any;
+// Real component import
+import { BridgeSessionBadge as Badge } from "./BridgeSessionBadge";
 
 // ── Minimal live-updates context mock ────────────────────────────────────────
 // The bridge live events hook subscribes to LiveUpdatesProvider context.
@@ -471,9 +465,9 @@ describeWhenImplemented("BridgeSessionBadge — ADR-0005 §8 / CLI-142", () => {
       expect(liveRegion).not.toBeNull();
     });
 
-    it("two deny-flash events fire two distinct ARIA announcements", () => {
+    it("two deny-flash events fire two distinct ARIA announcements", async () => {
       render(<Badge />);
-      act(() => {
+      await act(async () => {
         mockLiveEvents.emitSessionState(makeActiveSession());
       });
 
@@ -489,20 +483,26 @@ describeWhenImplemented("BridgeSessionBadge — ADR-0005 §8 / CLI-142", () => {
         observer.observe(liveRegion, { childList: true, characterData: true, subtree: true });
       }
 
-      // First deny
-      act(() => {
+      // First deny — await so jsdom's Promise-based MutationObserver microtask fires
+      await act(async () => {
         mockLiveEvents.emitDenyFlash(makeDenyFlash());
       });
       // Second deny 800ms later
-      act(() => {
+      await act(async () => {
         vi.advanceTimersByTime(800);
         mockLiveEvents.emitDenyFlash(makeDenyFlash());
       });
 
+      for (const _record of observer.takeRecords()) {
+        if (liveRegion?.textContent) {
+          announcements.push(liveRegion.textContent);
+        }
+      }
       observer.disconnect();
 
-      // Two distinct deny-flash events must produce at least 2 announcements
-      // (Implementation may clear and re-set text; just verify count ≥ 2)
+      // Two distinct deny-flash events must produce at least 2 announcements.
+      // (jsdom 28+ delivers MutationObserver callbacks as Promise microtasks;
+      //  async act() flushes those before returning, so we get one callback per deny.)
       expect(announcements.length).toBeGreaterThanOrEqual(2);
     });
   });

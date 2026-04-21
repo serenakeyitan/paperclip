@@ -1,5 +1,15 @@
 export { agentAdapterTypeSchema, optionalAgentAdapterTypeSchema } from "./adapter-type.js";
 export {
+  bridgeCapabilitySchema,
+  bridgeDenyFlashPayloadSchema,
+  bridgeSessionPayloadSchema,
+  bridgeSourceSchema,
+  type BridgeCapability,
+  type BridgeDenyFlashPayload,
+  type BridgeSessionPayload,
+  type BridgeSource,
+} from "./validators/bridge.js";
+export {
   COMPANY_STATUSES,
   DEPLOYMENT_MODES,
   DEPLOYMENT_EXPOSURES,
