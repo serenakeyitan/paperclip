@@ -171,10 +171,14 @@ function doTrip(state: CircuitState, reason: string, evidence: TripEvidence[], n
   state.probeSuccessCount = 0;
 }
 
-function resetThresholdsIfStable(state: CircuitState, now: number): void {
+function resetThresholdsIfStable(
+  state: CircuitState,
+  now: number,
+  releasedAt: number | null = state.lastReleasedAt,
+): void {
   if (
-    state.lastReleasedAt !== null &&
-    now - state.lastReleasedAt >= _config.reTripGraceMs &&
+    releasedAt !== null &&
+    now - releasedAt >= _config.reTripGraceMs &&
     state.reTripCount > 0
   ) {
     state.reTripCount = 0;
@@ -275,6 +279,7 @@ export function recordProbeResult(adapterType: string, ok: boolean): "released" 
     state.probeSuccessCount += 1;
     if (state.probeSuccessCount >= _config.probeSuccessCount) {
       // Release
+      const previousReleasedAt = state.lastReleasedAt;
       state.phase = "Closed";
       state.trippedAt = null;
       state.resumeAt = null;
@@ -282,7 +287,7 @@ export function recordProbeResult(adapterType: string, ok: boolean): "released" 
       state.tripEvidence = [];
       state.lastReleasedAt = now;
       failureWindow.delete(adapterType);
-      resetThresholdsIfStable(state, now);
+      resetThresholdsIfStable(state, now, previousReleasedAt);
       writeAudit({
         action: "probe_release",
         adapterType,

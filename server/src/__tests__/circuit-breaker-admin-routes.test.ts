@@ -127,6 +127,7 @@ beforeAll(async () => {
 afterEach(() => {
   circuitBreaker._resetForTesting();
   vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────
@@ -378,5 +379,33 @@ describe("circuit-breaker state machine (unit)", () => {
     const state = cb.getCircuitState("copilot_local");
     // effectiveNBurst should be halved from default (3 → 2)
     expect(state?.effectiveNBurst).toBeLessThan(cb.getConfig().nBurst);
+  });
+
+  it("restores default thresholds on probe release after a stale prior release", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+
+    const cb = circuitBreaker;
+    cb.configure({ ...cb.getConfig(), probeSuccessCount: 1, reTripGraceMs: 60_000 });
+    cb.forceQuarantine("copilot_local", "board", "admin");
+
+    const state = cb.getCircuitState("copilot_local");
+    expect(state).not.toBeNull();
+
+    state!.phase = "HalfOpen";
+    state!.resumeAt = Date.now() - 1;
+    state!.probeSuccessCount = 0;
+    state!.reTripCount = 1;
+    state!.effectiveNBurst = Math.max(1, Math.ceil(cb.getConfig().nBurst / 2));
+    state!.effectiveNSustained = Math.max(1, Math.ceil(cb.getConfig().nSustained / 2));
+    state!.lastReleasedAt = Date.now() - 61_000;
+
+    expect(cb.recordProbeResult("copilot_local", true)).toBe("released");
+
+    const releasedState = cb.getCircuitState("copilot_local");
+    expect(releasedState?.phase).toBe("Closed");
+    expect(releasedState?.reTripCount).toBe(0);
+    expect(releasedState?.effectiveNBurst).toBe(cb.getConfig().nBurst);
+    expect(releasedState?.effectiveNSustained).toBe(cb.getConfig().nSustained);
   });
 });
